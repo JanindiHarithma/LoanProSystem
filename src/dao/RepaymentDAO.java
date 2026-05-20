@@ -6,13 +6,15 @@ import java.util.List;
 
 public class RepaymentDAO {
 
-    // Generate repayment schedule after loan approval
-    public boolean generateSchedule(int loanId, double emiAmount, 
-                                     int months) {
-        String sql = "INSERT INTO repayment (loan_id, due_date, amount_due, status) "
-                   + "VALUES (?, DATE_ADD(NOW(), INTERVAL ? MONTH), ?, 'PENDING')";
+    public boolean generateSchedule(int loanId,
+            double emiAmount, int months) {
+        String sql = "INSERT INTO repayment "
+            + "(loan_id, due_date, amount_due, status) "
+            + "VALUES (?, DATE_ADD(NOW(), "
+            + "INTERVAL ? MONTH), ?, 'PENDING')";
         try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+             PreparedStatement ps =
+                 con.prepareStatement(sql)) {
             for (int i = 1; i <= months; i++) {
                 ps.setInt(1, loanId);
                 ps.setInt(2, i);
@@ -22,20 +24,21 @@ public class RepaymentDAO {
             ps.executeBatch();
             return true;
         } catch (SQLException e) {
-            System.out.println("Error generating schedule: " + e.getMessage());
+            System.out.println("Error: " + e.getMessage());
             return false;
         }
     }
 
-    // Get repayment schedule for a loan
     public List<Object[]> getSchedule(int loanId) {
         List<Object[]> list = new ArrayList<>();
-        String sql = "SELECT r.repayment_id, r.due_date, r.amount_due, "
-                   + "r.amount_paid, r.status, r.penalty "
-                   + "FROM repayment r WHERE r.loan_id = ? "
-                   + "ORDER BY r.due_date";
+        String sql = "SELECT r.repayment_id, r.due_date,"
+            + " r.amount_due, r.amount_paid,"
+            + " r.status, r.penalty "
+            + "FROM repayment r WHERE r.loan_id=? "
+            + "ORDER BY r.due_date";
         try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+             PreparedStatement ps =
+                 con.prepareStatement(sql)) {
             ps.setInt(1, loanId);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
@@ -54,12 +57,14 @@ public class RepaymentDAO {
         return list;
     }
 
-    // Mark installment as paid
-    public boolean markAsPaid(int repaymentId, double amountPaid) {
-        String sql = "UPDATE repayment SET amount_paid=?, paid_date=NOW(), "
-                   + "status='PAID' WHERE repayment_id=?";
+    public boolean markAsPaid(int repaymentId,
+            double amountPaid) {
+        String sql = "UPDATE repayment SET "
+            + "amount_paid=?, paid_date=NOW(),"
+            + "status='PAID' WHERE repayment_id=?";
         try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+             PreparedStatement ps =
+                 con.prepareStatement(sql)) {
             ps.setDouble(1, amountPaid);
             ps.setInt(2, repaymentId);
             ps.executeUpdate();
@@ -70,14 +75,15 @@ public class RepaymentDAO {
         }
     }
 
-    // Get approved loans for dropdown
     public List<Object[]> getApprovedLoansForDropdown() {
         List<Object[]> list = new ArrayList<>();
-        String sql = "SELECT l.loan_id, c.full_name, l.loan_amount, "
-                   + "l.emi_amount, l.duration_months "
-                   + "FROM loan l "
-                   + "JOIN customer c ON l.customer_id = c.customer_id "
-                   + "WHERE l.status = 'APPROVED'";
+        String sql = "SELECT l.loan_id, c.full_name,"
+            + " l.loan_amount, l.emi_amount,"
+            + " l.duration_months "
+            + "FROM loan l "
+            + "JOIN customer c "
+            + "ON l.customer_id=c.customer_id "
+            + "WHERE l.status='APPROVED'";
         try (Connection con = DBConnection.getConnection();
              Statement st = con.createStatement();
              ResultSet rs = st.executeQuery(sql)) {
@@ -94,5 +100,34 @@ public class RepaymentDAO {
             System.out.println("Error: " + e.getMessage());
         }
         return list;
+    }
+
+    public int getOverdueCount() {
+        try (Connection con = DBConnection.getConnection();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(
+                 "SELECT COUNT(*) FROM repayment "
+                 + "WHERE status='OVERDUE'")) {
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    public int getDueSoonCount() {
+        try (Connection con = DBConnection.getConnection();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(
+                 "SELECT COUNT(*) FROM repayment "
+                 + "WHERE status='PENDING' "
+                 + "AND due_date BETWEEN CURDATE() "
+                 + "AND DATE_ADD(CURDATE(),"
+                 + "INTERVAL 7 DAY)")) {
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+        return 0;
     }
 }
